@@ -4,13 +4,25 @@ Read `AGENTS.md` first for shared project facts. This file is build-specific.
 
 ## Commands
 
-`<!-- FILL IN as soon as these exist. Do not guess at framework defaults — a wrong command
-wastes a turn and erodes trust in the rest of this file. -->`
-- Install: `TBD`
-- Run dev server: `TBD`
-- Run tests: `TBD`
-- Lint: `TBD`
-- Run a single test file: `TBD`
+All backend commands run from `src/backend/`. All frontend commands run from `src/frontend/`.
+
+### Backend (Python / FastAPI)
+- **Create venv (once):** `python3 -m venv .venv`
+- **Install deps:** `.venv/bin/pip install -r requirements.txt`
+- **Run dev server:** `.venv/bin/uvicorn main:app --reload --port 8000`
+- **Run tests:** `.venv/bin/pytest`
+- **Run a single test file:** `.venv/bin/pytest tests/test_matcher.py -v`
+- **Copy env template:** `cp .env.example .env` then fill in secrets
+
+### Frontend (React / Vite)
+- **Install deps:** `npm install`
+- **Run dev server:** `npm run dev` → http://localhost:5173
+- **Build:** `npm run build`
+- **Preview build:** `npm run preview`
+
+### Data
+- **Run ETL (one-time):** `cd scripts && python3 01_extract.py`
+  Reads `data/raw/*.xlsx` → writes 5 CSVs to `data/processed/`
 
 ## Non-negotiable constraints (don't do these things)
 

@@ -1,6 +1,9 @@
 # ── Raw source data (large binary files; download from SkillsFuture Jobs-Skills Portal) ──
 data/raw/
 
+# ── Backend secrets ──
+src/backend/.env
+
 # ── Python ──
 __pycache__/
 *.py[cod]

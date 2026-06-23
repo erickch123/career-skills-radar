@@ -1,0 +1,33 @@
+# Web framework
+fastapi[standard]==0.128.0
+
+# Database
+sqlalchemy>=2.0.0,<3.0.0
+psycopg2-binary>=2.9.0
+alembic>=1.13.0
+
+# LLM
+anthropic==0.105.2
+openai-agents==0.7.0
+
+# Skill matching
+rapidfuzz>=3.9.0
+
+# Data / ETL
+openpyxl>=3.1.0
+pandas>=2.2.0
+
+# Auth / Gmail
+google-auth-oauthlib>=1.2.0
+google-auth-httplib2>=0.2.0
+
+# Notifications
+resend>=2.3.0
+
+# Job search
+apify-client>=1.7.0
+
+# Utilities
+python-dotenv>=1.0.0
+httpx>=0.27.0
+pydantic>=2.7.0,<3.0.0
