@@ -1,0 +1,33 @@
+# ── Raw source data (large binary files; download from SkillsFuture Jobs-Skills Portal) ──
+data/raw/
+
+# ── Python ──
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# ── Environment / secrets ──
+.env
+.env.local
+.env.*.local
+
+# ── Node / React ──
+node_modules/
+.next/
+out/
+dist/
+
+# ── OS ──
+.DS_Store
+Thumbs.db
