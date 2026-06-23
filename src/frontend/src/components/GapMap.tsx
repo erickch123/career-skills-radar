@@ -45,7 +45,10 @@ export default function GapMap({ data }: Props) {
   return (
     <div className="gap-map">
       <div className="gap-map-header">
-        <div className="gap-map-title">Skills Gap Map</div>
+        <div>
+          <div className="gap-map-title">Career Skills Gap Analysis</div>
+          <div className="gap-map-subtitle">Gaps ranked by demand across your saved jobs · skills mapped to SkillsFuture TSC framework</div>
+        </div>
         <div className="gap-map-meta">
           {data.cv_skills_count} CV skills · {data.jobs_count} job{data.jobs_count !== 1 ? 's' : ''}
         </div>

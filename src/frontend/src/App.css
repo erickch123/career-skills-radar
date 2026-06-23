@@ -14,10 +14,15 @@
 
 /* ── Header ── */
 .chat-header {
-  padding: 14px 20px;
+  padding: 12px 20px 10px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
   background: var(--bg-surface);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.chat-header-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -34,9 +39,40 @@
   color: var(--text);
   margin-top: 1px;
 }
+.chat-header-overview {
+  font-size: 11px;
+  color: var(--text-secondary, #888);
+  line-height: 1.5;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+/* ── Header button list ── */
+.header-btn-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.header-btn-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.header-btn {
+  min-width: 148px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.header-btn-desc {
+  font: 400 11px var(--sans);
+  color: var(--text-secondary, #888);
+  line-height: 1.4;
+  text-align: left;
+}
 .chat-header-actions {
   display: flex;
-  gap: 8px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
   flex-shrink: 0;
 }
 .action-btn {
@@ -61,6 +97,70 @@
 .action-btn-primary:hover {
   opacity: 0.9;
   background: var(--accent);
+}
+
+/* ── Add Dropdown ── */
+.add-dropdown {
+  position: relative;
+}
+.add-dropdown-trigger.active {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+}
+.add-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 260px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  padding: 4px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.add-dropdown-item {
+  width: 100%;
+  padding: 8px 12px;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 5px;
+  font: 500 13px var(--sans);
+  color: var(--text-h);
+  cursor: pointer;
+  transition: background 0.12s;
+  display: flex;
+  align-items: center;
+}
+.add-dropdown-item:hover {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+.add-dropdown-menu--up {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
+.add-dropdown-item--described {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  white-space: normal;
+}
+.add-dropdown-item-label {
+  font: 500 13px var(--sans);
+}
+.add-dropdown-item-desc {
+  font: 400 11px var(--sans);
+  color: var(--text-secondary, #888);
+  line-height: 1.4;
+}
+.add-dropdown-item--described:hover .add-dropdown-item-desc {
+  color: var(--accent);
+  opacity: 0.8;
 }
 
 /* ── Paste Panel ── */
@@ -130,6 +230,48 @@
   cursor: pointer;
 }
 .paste-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Notify Panel ── */
+.notify-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.notify-tab {
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  font: 500 12px var(--sans);
+  color: var(--text-h);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.notify-tab.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.notify-desc {
+  font-size: 12px;
+  color: var(--text-secondary, #888);
+  margin-bottom: 10px;
+  line-height: 1.5;
+}
+.notify-email-input {
+  width: 100%;
+  margin-bottom: 10px;
+}
+.notify-error {
+  color: #dc2626;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+.notify-mode-hint {
+  font-size: 11px;
+  color: var(--text-secondary, #aaa);
+  margin-left: 10px;
+}
 
 /* ── Messages ── */
 .chat-messages {
@@ -212,11 +354,45 @@
 /* ── Input area ── */
 .chat-footer {
   display: flex;
-  gap: 10px;
-  padding: 16px 24px;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 24px 16px;
   border-top: 1px solid var(--border);
   background: var(--bg-surface);
   flex-shrink: 0;
+}
+.chat-suggestions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.suggestion-chip {
+  padding: 5px 11px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--bg);
+  color: var(--text-secondary, var(--text-h));
+  font: 400 12px var(--sans);
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+  text-align: left;
+  max-width: 340px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.suggestion-chip:hover:not(:disabled) {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+  color: var(--accent);
+}
+.suggestion-chip:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.chat-input-row {
+  display: flex;
+  gap: 10px;
   align-items: flex-end;
 }
 
@@ -284,9 +460,15 @@
   font-weight: 600;
   color: var(--text-h);
 }
+.gap-map-subtitle {
+  font-size: 11.5px;
+  color: var(--text);
+  margin-top: 2px;
+}
 .gap-map-meta {
   font-size: 12px;
   color: var(--text);
+  flex-shrink: 0;
 }
 .readiness-row {
   display: flex;
@@ -351,6 +533,225 @@
 .per-jd-title { color: var(--text-h); }
 .per-jd-pct { color: var(--accent); font-weight: 500; }
 
+/* ── Tool Activity Breadcrumb ── */
+.msg-tool-activity {
+  justify-content: center;
+}
+.tool-activity-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+  border-radius: 99px;
+  padding: 3px 10px;
+}
+.tool-activity-pill::before {
+  content: '⚡';
+  font-size: 10px;
+}
+
+/* ── Career Radar Component ── */
+.career-radar {
+  width: 100%;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 20px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.radar-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-h);
+}
+.radar-intro {
+  font-size: 12px;
+  color: var(--text-secondary, #888);
+  line-height: 1.55;
+  margin-top: 2px;
+}
+.radar-section { display: flex; flex-direction: column; gap: 10px; }
+.radar-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-h);
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.radar-section-sub {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text);
+}
+.radar-loading {
+  font-size: 13px;
+  color: var(--text);
+  padding: 16px;
+  text-align: center;
+}
+.radar-error {
+  font-size: 13px;
+  color: #ef4444;
+  padding: 8px 0;
+}
+.radar-job-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+.radar-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 99px;
+  border: 1px solid;
+  color: var(--text-h);
+  background: var(--bg);
+}
+.radar-pill-tier {
+  font-weight: 500;
+  font-size: 10px;
+  text-transform: capitalize;
+}
+
+/* ── Email Jobs Panel ── */
+.email-source-badge {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 99px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-weight: 500;
+}
+.email-source-live {
+  background: #d1fae5;
+  border-color: #6ee7b7;
+  color: #065f46;
+}
+.email-loading {
+  font-size: 13px;
+  color: var(--text);
+  padding: 8px 0;
+}
+.email-jobs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 260px;
+  overflow-y: auto;
+  margin-bottom: 10px;
+}
+.email-job-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  overflow: hidden;
+}
+.email-job-card-open {
+  border-color: var(--accent);
+}
+.email-job-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+}
+.email-job-info { flex: 1; min-width: 0; }
+.email-job-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-h);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.email-platform-tag {
+  flex-shrink: 0;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  letter-spacing: 0.2px;
+}
+.email-platform-linkedin {
+  background: #0a66c2;
+  color: #fff;
+}
+.email-platform-indeed {
+  background: #003a9b;
+  color: #fff;
+}
+.email-job-meta {
+  font-size: 11.5px;
+  color: var(--text);
+  margin-top: 1px;
+}
+.email-job-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.email-job-tag {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 99px;
+  background: #d1fae5;
+  border: 1px solid #6ee7b7;
+  color: #065f46;
+  flex-shrink: 0;
+}
+.email-add-btn {
+  font-size: 11.5px;
+  padding: 3px 9px;
+  border-radius: 6px;
+  border: 1px solid var(--accent);
+  background: var(--accent-bg);
+  color: var(--accent);
+  cursor: pointer;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.email-add-btn:hover { background: var(--accent); color: #fff; }
+.email-add-btn-cancel {
+  border-color: var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+.email-add-btn-cancel:hover { background: var(--bg); color: #ef4444; border-color: #ef4444; }
+.email-jd-form {
+  border-top: 1px solid var(--accent-border);
+  background: var(--accent-bg);
+  padding: 10px 12px;
+}
+.email-jd-label {
+  font-size: 12px;
+  color: var(--accent);
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+.email-jd-actions {
+  margin-top: 8px;
+  display: flex;
+  justify-content: flex-end;
+}
+
 /* ── Jobs List ── */
 .jobs-empty {
   font-size: 13px;
@@ -398,6 +799,28 @@
   opacity: 0.6;
 }
 .job-delete:hover { opacity: 1; color: #ef4444; }
+.job-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.job-view {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 3px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  color: var(--accent);
+}
+.job-view:hover { background: var(--accent-bg); }
+.jd-viewer {
+  white-space: pre-wrap;
+  font: 13px/1.6 var(--mono);
+  color: var(--text-h);
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
 .job-row { cursor: pointer; }
 .job-row-selected {
   border-color: var(--accent);

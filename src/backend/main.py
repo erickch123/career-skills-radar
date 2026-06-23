@@ -6,6 +6,10 @@ from api.chat import router as chat_router
 from api.profile import router as profile_router
 from api.jobs import router as jobs_router
 from api.gap import router as gap_router
+from api.insights import router as insights_router
+from api.worklog import router as worklog_router
+from api.email_jobs import router as email_router
+from api.notifications import router as notify_router
 
 load_dotenv()
 
@@ -24,6 +28,10 @@ app.include_router(chat_router)
 app.include_router(profile_router)
 app.include_router(jobs_router)
 app.include_router(gap_router)
+app.include_router(insights_router)
+app.include_router(worklog_router)
+app.include_router(email_router)
+app.include_router(notify_router)
 
 
 @app.get("/api/health")

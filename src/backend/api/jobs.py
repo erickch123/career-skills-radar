@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from db import get_db
 from models.models import UserProfile, SavedJob, SkillMatchCache
 from core.matcher import get_matcher
+import api.insights as insights_cache
 
 router = APIRouter()
 USER_ID = 1
@@ -44,6 +45,7 @@ def save_job(req: JDRequest, db: Session = Depends(get_db)):
         ))
 
     db.commit()
+    insights_cache._classify_cache = None  # new job needs classification
     return {
         "job_id": job.id,
         "skills_found": len(matches),
@@ -65,6 +67,7 @@ def list_jobs(db: Session = Depends(get_db)):
             "company": j.company or "",
             "skills_count": skills_count,
             "date_saved": j.date_saved.isoformat() if j.date_saved else None,
+            "raw_jd_text": j.raw_jd_text or "",
         })
     return result
 
@@ -74,4 +77,5 @@ def delete_job(job_id: int, db: Session = Depends(get_db)):
     db.query(SkillMatchCache).filter_by(source_type="saved_job", source_id=job_id).delete()
     db.query(SavedJob).filter_by(id=job_id, user_profile_id=USER_ID).delete()
     db.commit()
+    insights_cache._classify_cache = None  # invalidate so Career Radar reflects deletion
     return {"deleted": job_id}

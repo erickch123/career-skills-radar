@@ -6,6 +6,7 @@ interface Job {
   company: string
   skills_count: number
   date_saved: string | null
+  raw_jd_text: string
 }
 
 interface Props {
@@ -18,6 +19,7 @@ interface Props {
 export default function JobsList({ onClose, onDeleted, selectedIds, onSelectionChange }: Props) {
   const [jobs, setJobs] = useState<Job[]>([])
   const [loading, setLoading] = useState(true)
+  const [viewingJD, setViewingJD] = useState<Job | null>(null)
 
   useEffect(() => {
     fetch('/api/jobs')
@@ -47,6 +49,18 @@ export default function JobsList({ onClose, onDeleted, selectedIds, onSelectionC
     setJobs((prev) => prev.filter((j) => j.id !== id))
     onSelectionChange(selectedIds.filter((x) => x !== id))
     onDeleted('Job removed.')
+  }
+
+  if (viewingJD) {
+    return (
+      <div className="paste-panel">
+        <div className="paste-panel-header">
+          <span>{viewingJD.title}{viewingJD.company ? ` · ${viewingJD.company}` : ''}</span>
+          <button className="paste-close" onClick={() => setViewingJD(null)}>← Back</button>
+        </div>
+        <div className="jd-viewer">{viewingJD.raw_jd_text}</div>
+      </div>
+    )
   }
 
   return (
@@ -98,12 +112,20 @@ export default function JobsList({ onClose, onDeleted, selectedIds, onSelectionC
                   <span>{job.skills_count} skills</span>
                 </div>
               </div>
-              <button
-                className="job-delete"
-                onClick={(e) => { e.stopPropagation(); deleteJob(job.id) }}
-              >
-                ✕
-              </button>
+              <div className="job-actions">
+                <button
+                  className="job-view"
+                  onClick={(e) => { e.stopPropagation(); setViewingJD(job) }}
+                >
+                  View
+                </button>
+                <button
+                  className="job-delete"
+                  onClick={(e) => { e.stopPropagation(); deleteJob(job.id) }}
+                >
+                  ✕
+                </button>
+              </div>
             </div>
           )
         })}

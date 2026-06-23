@@ -16,6 +16,12 @@ class CVRequest(BaseModel):
     cv_text: str
 
 
+@router.get("/api/profile/cv")
+def get_cv(db: Session = Depends(get_db)):
+    user = db.get(UserProfile, USER_ID)
+    return {"cv_text": user.cv_raw_text if user else ""}
+
+
 @router.post("/api/profile/cv")
 def save_cv(req: CVRequest, db: Session = Depends(get_db)):
     user = db.get(UserProfile, USER_ID)

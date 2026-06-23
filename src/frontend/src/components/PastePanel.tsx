@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 type PanelType = 'cv' | 'jd'
 
@@ -13,6 +13,15 @@ export default function PastePanel({ type, onClose, onSaved }: Props) {
   const [title, setTitle] = useState('')
   const [company, setCompany] = useState('')
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (type === 'cv') {
+      fetch('/api/profile/cv')
+        .then((r) => r.json())
+        .then((d) => { if (d.cv_text) setText(d.cv_text) })
+        .catch(() => {})
+    }
+  }, [type])
 
   async function submit() {
     if (!text.trim()) return

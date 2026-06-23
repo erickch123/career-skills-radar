@@ -3,6 +3,8 @@ data/raw/
 
 # ── Backend secrets ──
 src/backend/.env
+src/backend/token.json
+src/backend/credentials.json
 
 # ── Python ──
 __pycache__/
