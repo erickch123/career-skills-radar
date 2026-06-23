@@ -6,8 +6,8 @@ Phased build order from scaffolding to full hackathon demo. Each phase ends at a
 |---|---|---|
 | 0 | Project Scaffolding | ✅ Done |
 | 1 | Data Foundation | ✅ Done |
-| 2 | Database | ⬜ Not started |
-| 3 | Chat Shell + LLM Core | ⬜ Not started |
+| 2 | Database | ✅ Done |
+| 3 | Chat Shell + LLM Core | ✅ Done |
 | 4 | CV + JD Paste + Gap Map | ⬜ Not started |
 | 5 | Seniority + Career Radar | ⬜ Not started |
 | 6 | Full Agentic Work Log Chat | ⬜ Not started |
