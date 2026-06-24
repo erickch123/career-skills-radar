@@ -9,10 +9,10 @@ Built for **PyCon SG 2026 Hackathon — Job & Skills Track**.
 ## Diagrams
 
 **User Journey & Features** — problems solved, feature flow, and outcomes:
-[View on Excalidraw →](https://excalidraw.com/#json=zqu_7IkZpghrBTyq__3c6,uvhrVmIaxoraj09RXPpBOQ)
+[Open diagram file →](docs/diagrams/user-journey.excalidraw)
 
 **Tech Stack** — frontend, backend, AI, data connectors, and infrastructure:
-[View on Excalidraw →](https://excalidraw.com/#json=go0f2ASvUa1HQoPh8DLs6,d2IsIqBGspxkkin9BKfR4Q)
+[Open diagram file →](docs/diagrams/tech-stack.excalidraw)
 
 ---
 
