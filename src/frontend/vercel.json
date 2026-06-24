@@ -1,6 +1,6 @@
 {
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://YOUR_APP.onrender.com/api/:path*" },
-    { "source": "/match",      "destination": "https://YOUR_APP.onrender.com/match" }
+    { "source": "/api/:path*", "destination": "https://career-skills-radar.onrender.com/api/:path*" },
+    { "source": "/match",      "destination": "https://career-skills-radar.onrender.com/match" }
   ]
 }
