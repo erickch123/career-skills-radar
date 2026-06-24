@@ -1,18 +1,25 @@
 """
-Apify job scraper connector — cookieless LinkedIn + Indeed actors.
+Apify job scraper connector — LinkedIn + Indeed.
 
-Live mode  — APIFY_API_TOKEN in .env → runs real Apify actors.
+Live mode  — APIFY_API_KEY in .env → runs real Apify actors.
 Demo mode  — token absent → returns mock jobs instantly.
+
+Actors used (cheap pay-per-result):
+  LinkedIn : curious_coder/linkedin-jobs-scraper  ($0.001/result)
+  Indeed   : valig/indeed-jobs-scraper            ($0.0001/result)
 """
 
 import os
+import urllib.parse
 from dataclasses import dataclass
 
-APIFY_TOKEN = os.getenv("APIFY_API_TOKEN")
+# Env var name matches what's in src/backend/.env
+APIFY_TOKEN = os.getenv("APIFY_API_KEY")
 
-# Cookieless actors (no LinkedIn login required)
-LINKEDIN_ACTOR = "bebity/linkedin-jobs-scraper"
-INDEED_ACTOR   = "misceres/indeed-scraper"
+LINKEDIN_ACTOR = "curious_coder/linkedin-jobs-scraper"
+INDEED_ACTOR   = "valig/indeed-jobs-scraper"
+
+RESULTS_PER_SOURCE = 5   # 5 from LinkedIn + 5 from Indeed = 10 total
 
 
 @dataclass
@@ -27,13 +34,13 @@ class ApifyJob:
 
 
 def fetch_jobs(keywords: list[str], location: str = "Singapore", max_results: int = 10) -> list[ApifyJob]:
-    """Fetch jobs matching keywords. Live if APIFY_API_TOKEN set, mock otherwise."""
+    """Fetch jobs matching keywords. Live if APIFY_API_KEY set, mock otherwise."""
     if not APIFY_TOKEN:
-        print("[apify_connector] No APIFY_API_TOKEN — returning mock jobs")
+        print("[apify_connector] No APIFY_API_KEY — returning mock jobs")
         return _mock_jobs(keywords)
 
     try:
-        return _fetch_via_apify(keywords, location, max_results)
+        return _fetch_via_apify(keywords, location)
     except Exception as e:
         print(f"[apify_connector] Apify error, falling back to mock: {e}")
         return _mock_jobs(keywords)
@@ -45,47 +52,62 @@ def is_connected() -> bool:
 
 # ── Live fetch ────────────────────────────────────────────────────────────────
 
-def _fetch_via_apify(keywords: list[str], location: str, max_results: int) -> list[ApifyJob]:
+def _fetch_via_apify(keywords: list[str], location: str) -> list[ApifyJob]:
     from apify_client import ApifyClient
 
     client = ApifyClient(APIFY_TOKEN)
+    query = " ".join(keywords[:3])
     jobs: list[ApifyJob] = []
 
-    # Build search query from top 3 keywords
-    query = " ".join(keywords[:3])
+    # ── LinkedIn ──────────────────────────────────────────────────────────────
+    # curious_coder actor takes search page URLs, not raw queries
+    linkedin_url = (
+        "https://www.linkedin.com/jobs/search/?"
+        + urllib.parse.urlencode({"keywords": query, "location": location, "position": 1, "pageNum": 0})
+    )
+    print(f"[apify_connector] LinkedIn search URL: {linkedin_url}")
 
-    # LinkedIn
-    run = client.actor(LINKEDIN_ACTOR).call(run_input={
-        "queries":    [f"{query} {location}"],
-        "maxResults": max_results,
+    li_run = client.actor(LINKEDIN_ACTOR).call(run_input={
+        "urls": [linkedin_url],
+        "count": RESULTS_PER_SOURCE,
+        "scrapeCompany": False,  # skip extra company page requests for speed
     })
-    for item in client.dataset(run["defaultDatasetId"]).iterate_items():
+    for item in client.dataset(li_run["defaultDatasetId"]).iterate_items():
         jobs.append(ApifyJob(
-            title=item.get("title", ""),
-            company=item.get("company", ""),
-            location=item.get("location", location),
-            description_snippet=(item.get("description", "")[:300]),
-            job_url=item.get("jobUrl", ""),
-            posted_at=item.get("publishedAt", ""),
+            title=item.get("title") or item.get("jobTitle") or "",
+            company=item.get("companyName") or item.get("company") or "",
+            location=item.get("location") or location,
+            description_snippet=(item.get("description") or item.get("descriptionText") or "")[:300],
+            job_url=item.get("jobUrl") or item.get("url") or "",
+            posted_at=item.get("publishedAt") or item.get("postedDate") or "",
             source="linkedin",
         ))
+        if len([j for j in jobs if j.source == "linkedin"]) >= RESULTS_PER_SOURCE:
+            break
 
-    # Indeed
-    run2 = client.actor(INDEED_ACTOR).call(run_input={
-        "queries": [{"query": query, "location": location, "maxItems": max_results}],
+    # ── Indeed ────────────────────────────────────────────────────────────────
+    # valig actor takes keyword + country (ISO 2-letter) + location
+    in_run = client.actor(INDEED_ACTOR).call(run_input={
+        "title": query,
+        "country": "sg",    # Singapore
+        "location": location,
+        "limit": RESULTS_PER_SOURCE,
     })
-    for item in client.dataset(run2["defaultDatasetId"]).iterate_items():
+    for item in client.dataset(in_run["defaultDatasetId"]).iterate_items():
         jobs.append(ApifyJob(
-            title=item.get("positionName", ""),
-            company=item.get("company", ""),
-            location=item.get("location", location),
-            description_snippet=(item.get("description", "")[:300]),
-            job_url=item.get("url", ""),
-            posted_at=item.get("datePosted", ""),
+            title=item.get("title") or item.get("jobTitle") or "",
+            company=item.get("companyName") or item.get("company") or "",
+            location=item.get("location") or item.get("city") or location,
+            description_snippet=(item.get("description") or item.get("summary") or "")[:300],
+            job_url=item.get("applyUrl") or item.get("link") or item.get("url") or "",
+            posted_at=item.get("datePosted") or item.get("publishedAt") or "",
             source="indeed",
         ))
+        if len([j for j in jobs if j.source == "indeed"]) >= RESULTS_PER_SOURCE:
+            break
 
-    return jobs[:max_results]
+    print(f"[apify_connector] fetched {len(jobs)} jobs total")
+    return jobs
 
 
 # ── Mock data ─────────────────────────────────────────────────────────────────

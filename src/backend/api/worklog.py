@@ -61,10 +61,19 @@ def save_work_log(req: WorkLogRequest, db: Session = Depends(get_db)):
         ))
 
     db.commit()
+
+    # Detect which extracted skills are not yet in the CV
+    cv_skills = {
+        row.canonical_skill_title
+        for row in db.query(SkillMatchCache).filter_by(source_type="cv", source_id=USER_ID).all()
+    }
+    new_skills = [m.skill_title for m in matches if m.skill_title not in cv_skills]
+
     return {
         "entry_id": entry.id,
         "skills_found": len(matches),
         "skills": [m.skill_title for m in matches],
+        "new_skills_not_in_cv": new_skills,
         "activities_summary": entry.activities_summary,
         "seniority_signal": entry.seniority_signal,
     }

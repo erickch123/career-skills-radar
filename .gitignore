@@ -6,6 +6,9 @@ src/backend/.env
 src/backend/token.json
 src/backend/credentials.json
 
+# ── Claude Code MCP config (contains API tokens) ──
+.mcp.json
+
 # ── Python ──
 __pycache__/
 *.py[cod]

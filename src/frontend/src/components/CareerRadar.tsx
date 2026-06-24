@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, Cell,
-  ResponsiveContainer, RadarChart, Radar, PolarGrid,
-  PolarAngleAxis,
+  ResponsiveContainer,
 } from 'recharts'
 
 interface TierEntry { tier: string; label: string; count: number }
@@ -69,7 +68,7 @@ export default function CareerRadar() {
               <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--text)' }} />
               <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: 'var(--text)' }} width={20} />
               <Tooltip
-                formatter={(v: number) => [`${v} job${v !== 1 ? 's' : ''}`, 'Count']}
+                formatter={(v) => [`${v} job${v !== 1 ? 's' : ''}`, 'Count']}
                 contentStyle={{ fontSize: 12, background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 8 }}
               />
               <Bar dataKey="count" radius={[4, 4, 0, 0]}>
@@ -112,11 +111,12 @@ export default function CareerRadar() {
               <XAxis type="number" domain={[0, 100]} tickFormatter={v => `${v}%`} tick={{ fontSize: 11, fill: 'var(--text)' }} />
               <YAxis type="category" dataKey="label" width={180} tick={{ fontSize: 11, fill: 'var(--text-h)' }} />
               <Tooltip
-                formatter={(v: number, _: string, props: { payload?: Role }) =>
-                  props.payload
-                    ? [`${props.payload.overlap_count} of ${props.payload.total_required} skills matched (${v}%)`, '']
+                formatter={(v, _name, props) => {
+                  const p = props?.payload as Role | undefined
+                  return p
+                    ? [`${p.overlap_count} of ${p.total_required} skills matched (${v}%)`, '']
                     : [v, '']
-                }
+                }}
                 contentStyle={{ fontSize: 12, background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 8 }}
               />
               <Bar dataKey="match_pct" radius={[0, 4, 4, 0]} fill="var(--accent)" />

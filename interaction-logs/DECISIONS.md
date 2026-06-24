@@ -10,6 +10,10 @@ Format: `[Date/session] Decision — Human reasoning — AI's role`
 
 ### Planning session, pre-build
 
+- **Decision:** Standardised the public-facing docs and diagrams on a Claude-only stack and Gmail OAuth, removing older OpenAI and IMAP/App Password wording from the README and Excalidraw drafts.
+  **Human reasoning:** wanted the published repo to reflect the actual implementation and not confuse reviewers with stale options that are no longer being used.
+  **AI's role:** compared the docs, diagrams, and backend code, identified the mismatch, and applied the wording cleanup while preserving the hackathon story.
+
 - **Decision:** Use hybrid keyword/fuzzy matching (not pure-LLM extraction) for the core skill
   matcher.
   **Human reasoning:** explainability matters more for this hackathon's judging criteria than

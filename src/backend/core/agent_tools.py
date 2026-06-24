@@ -213,9 +213,14 @@ def _get_work_log_summary(db: Session) -> str:
     entries = (
         db.query(WorkLogEntry)
         .filter_by(user_profile_id=USER_ID)
-        .order_by(WorkLogEntry.date_logged.desc())
         .all()
     )
+    # Sort by when the work happened (period_covered), not when it was entered
+    from api.timeline import _parse_period
+    def _sort_key(e: WorkLogEntry):
+        p = _parse_period(e.period_covered)
+        return (p[0], p[1]) if p else (0, 0)
+    entries = sorted(entries, key=_sort_key, reverse=True)
     if not entries:
         return json.dumps({"entry_count": 0, "entries": [], "unique_skills": []})
 

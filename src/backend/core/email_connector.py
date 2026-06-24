@@ -19,7 +19,8 @@ SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
 
 SOURCES = {
     "linkedin": {
-        "query": "from:jobalerts-noreply@linkedin.com",
+        # LinkedIn sends from multiple addresses — cover all known ones
+        "query": "from:jobalerts-noreply@linkedin.com OR from:jobs-noreply@linkedin.com OR from:notifications@linkedin.com",
         "job_link_pattern": re.compile(r"linkedin\.com/jobs/view/\d+"),
         "url_clean_pattern": re.compile(r"(https://www\.linkedin\.com/jobs/view/\d+)"),
     },
@@ -44,11 +45,11 @@ class EmailJobAlert:
 
 # ── Public entry point ────────────────────────────────────────────────────────
 
-def fetch_job_alerts(max_per_source: int = 3) -> list[EmailJobAlert]:
+def fetch_job_alerts(max_per_source: int = 2, max_jobs_per_email: int = 6) -> list[EmailJobAlert]:
     """Return job alerts. Uses Gmail API if token.json exists, otherwise mock data."""
     if TOKEN_PATH.exists():
         try:
-            return _fetch_via_api(max_per_source)
+            return _fetch_via_api(max_per_source, max_jobs_per_email)
         except Exception as e:
             print(f"[email_connector] Gmail API error, falling back to mock: {e}")
     return _mock_alerts()
@@ -60,7 +61,7 @@ def is_connected() -> bool:
 
 # ── Gmail API fetch ───────────────────────────────────────────────────────────
 
-def _fetch_via_api(max_per_source: int) -> list[EmailJobAlert]:
+def _fetch_via_api(max_per_source: int, max_jobs_per_email: int = 6) -> list[EmailJobAlert]:
     from google.auth.transport.requests import Request
     from google.oauth2.credentials import Credentials
     from googleapiclient.discovery import build
@@ -94,21 +95,26 @@ def _fetch_via_api(max_per_source: int) -> list[EmailJobAlert]:
             )
             headers = {h["name"]: h["value"] for h in msg.get("payload", {}).get("headers", [])}
             print(f"[email_connector] {source_key} msg — From: {headers.get('From')} | Subject: {headers.get('Subject', '')[:60]}")
-            alerts = _parse_api_message(msg, source_key, cfg)
+            alerts = _parse_api_message(msg, source_key, cfg, max_jobs_per_email)
             print(f"[email_connector] {source_key} msg — parsed {len(alerts)} job alert(s)")
             all_alerts.extend(alerts)
 
-    # Deduplicate by URL
-    seen: set[str] = set()
+    # Deduplicate by stable job key (job ID from URL), then by (title, company) as fallback
+    seen_keys: set[str] = set()
+    seen_pairs: set[tuple[str, str]] = set()
     unique: list[EmailJobAlert] = []
     for a in all_alerts:
-        if a.job_url not in seen:
-            seen.add(a.job_url)
-            unique.append(a)
+        key = _stable_job_key(a.job_url, a.source)
+        pair = (a.title.lower()[:60], a.company.lower()[:40])
+        if key in seen_keys or pair in seen_pairs:
+            continue
+        seen_keys.add(key)
+        seen_pairs.add(pair)
+        unique.append(a)
     return unique
 
 
-def _parse_api_message(msg: dict, source_key: str, cfg: dict) -> list[EmailJobAlert]:
+def _parse_api_message(msg: dict, source_key: str, cfg: dict, max_jobs: int = 6) -> list[EmailJobAlert]:
     headers = {h["name"]: h["value"] for h in msg.get("payload", {}).get("headers", [])}
     subject = headers.get("Subject", "")
     date_str = headers.get("Date", "")
@@ -117,7 +123,7 @@ def _parse_api_message(msg: dict, source_key: str, cfg: dict) -> list[EmailJobAl
     if not html_body:
         return []
 
-    return _parse_html(html_body, subject, date_str, source_key, cfg)
+    return _parse_html(html_body, subject, date_str, source_key, cfg, max_jobs)
 
 
 def _extract_html_body(payload: dict) -> str:
@@ -136,21 +142,83 @@ def _extract_html_body(payload: dict) -> str:
 
 # ── HTML parsing (shared between API and legacy IMAP paths) ──────────────────
 
+# Text that appears in email cards but is not a company name or location
+_CARD_NOISE = re.compile(
+    r"^\d+[\.\d]*$"           # standalone ratings like "3.9"
+    r"|just posted"
+    r"|\d+\s*(day|hour|week|month)s?\s*ago"
+    r"|direct apply"
+    r"|via indeed|via linkedin"
+    r"|apply now"
+    r"|new\s*!?"
+    r"|promoted",
+    re.IGNORECASE,
+)
+
+
+def _extract_title(link_tag) -> str:
+    """Return only the job title from an anchor tag, ignoring card body text."""
+    # Prefer a heading or strong element (common in Indeed/LinkedIn emails)
+    for tag_name in ("h2", "h3", "h4", "strong", "b", "span"):
+        el = link_tag.find(tag_name)
+        if el:
+            t = el.get_text(strip=True)
+            if t and len(t) > 3:
+                return t
+    # Fall back to the first non-empty line of the link text
+    lines = [ln.strip() for ln in link_tag.get_text(separator="\n").split("\n") if ln.strip()]
+    return lines[0] if lines else ""
+
+
+def _extract_company_location(link_tag) -> tuple[str, str]:
+    """Extract company and location from inside the card anchor or its siblings."""
+    # Get all lines of text inside the card, skip the first (title) and noise
+    lines = [ln.strip() for ln in link_tag.get_text(separator="\n").split("\n") if ln.strip()]
+    candidates = [
+        ln for ln in lines[1:]
+        if len(ln) > 1
+        and len(ln) < 80  # skip long description snippets
+        and not _CARD_NOISE.search(ln)
+    ]
+    company = candidates[0] if candidates else "Unknown"
+    location = candidates[1] if len(candidates) > 1 else ""
+    return company, location
+
+
+def _stable_job_key(url: str, source_key: str) -> str:
+    """Return a stable dedup key regardless of tracking parameters in the URL."""
+    if source_key == "linkedin":
+        m = re.search(r"/jobs/view/(\d+)", url)
+        return f"linkedin:{m.group(1)}" if m else url
+    # Indeed: extract jk= job key from any URL type (viewjob, rc/clk, pagead/clk)
+    m = re.search(r"[?&]jk=([a-z0-9]+)", url)
+    return f"indeed:{m.group(1)}" if m else url
+
+
 def _parse_html(
-    html: str, subject: str, date_str: str, source_key: str, cfg: dict
+    html: str, subject: str, date_str: str, source_key: str, cfg: dict, max_jobs: int = 6
 ) -> list[EmailJobAlert]:
     soup = BeautifulSoup(html, "html.parser")
     alerts: list[EmailJobAlert] = []
+    seen_in_email: set[str] = set()
 
     job_links = soup.find_all("a", href=cfg["job_link_pattern"])
     for link in job_links:
-        title = link.get_text(separator=" ", strip=True)
-        if not title or len(title) < 3:
-            continue
-
+        if len(alerts) >= max_jobs:
+            break
         raw_url = link.get("href", "")
         url_match = cfg["url_clean_pattern"].search(raw_url)
         url = url_match.group(1) if url_match else raw_url
+
+        # Dedup within a single email using stable job key
+        key = _stable_job_key(url, source_key)
+        if key in seen_in_email:
+            continue
+        seen_in_email.add(key)
+
+        title = _extract_title(link)
+        if not title or len(title) < 3:
+            continue
 
         company, location = _extract_company_location(link)
         alerts.append(EmailJobAlert(
@@ -163,29 +231,6 @@ def _parse_html(
             source=source_key,
         ))
     return alerts
-
-
-def _extract_company_location(link_tag) -> tuple[str, str]:
-    parent = link_tag.parent
-    for _ in range(3):
-        if parent is None:
-            break
-        texts = [
-            t.strip()
-            for t in parent.stripped_strings
-            if t.strip() and t.strip() != link_tag.get_text(strip=True)
-        ]
-        non_empty = [t for t in texts if len(t) > 1]
-        if non_empty:
-            company = non_empty[0]
-            location = non_empty[1] if len(non_empty) > 1 else ""
-            if re.match(r"^\d+", company):
-                company = "Unknown"
-            if re.match(r"^\d+", location):
-                location = ""
-            return company, location
-        parent = parent.parent
-    return "Unknown", ""
 
 
 def _format_date(date_str: str) -> str:

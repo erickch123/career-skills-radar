@@ -46,3 +46,37 @@ def save_cv(req: CVRequest, db: Session = Depends(get_db)):
 
     db.commit()
     return {"skills_found": len(matches), "skills": [m.skill_title for m in matches]}
+
+
+class CVAppendRequest(BaseModel):
+    skills_to_add: list[str]
+
+
+@router.post("/api/profile/cv-append")
+def append_skills_to_cv(req: CVAppendRequest, db: Session = Depends(get_db)):
+    """Append a list of skill names to the bottom of the user's CV text."""
+    user = db.get(UserProfile, USER_ID)
+    if not user:
+        user = UserProfile(id=USER_ID)
+        db.add(user)
+
+    existing = user.cv_raw_text or ""
+    addition = "\n\nAdditional Skills (from work log):\n" + "\n".join(f"- {s}" for s in req.skills_to_add)
+    user.cv_raw_text = existing.rstrip() + addition
+    user.cv_updated_at = datetime.now(timezone.utc)
+
+    # Re-extract all CV skills
+    db.query(SkillMatchCache).filter_by(source_type="cv", source_id=USER_ID).delete()
+    matches = get_matcher().extract_skills(user.cv_raw_text)
+    for m in matches:
+        db.add(SkillMatchCache(
+            source_type="cv",
+            source_id=USER_ID,
+            canonical_skill_title=m.skill_title,
+            match_method=m.method,
+            confidence=m.confidence,
+            evidence_snippet=m.evidence_snippet,
+        ))
+
+    db.commit()
+    return {"cv_skills_total": len(matches), "added": len(req.skills_to_add)}

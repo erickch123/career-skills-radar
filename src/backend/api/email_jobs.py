@@ -23,7 +23,7 @@ USER_ID = 1
 @router.get("/api/email/jobs")
 def get_email_jobs(db: Session = Depends(get_db)):
     """Fetch job alerts and flag ones already saved by title+company match."""
-    alerts = fetch_job_alerts(max_per_source=3)
+    alerts = fetch_job_alerts(max_per_source=2)
 
     saved_keys: set[str] = {
         f"{(j.title or '').lower()}|{(j.company or '').lower()}"

@@ -1,99 +1,190 @@
 import { useState } from 'react'
 
+interface ApifyJob {
+  title: string
+  company: string
+  location: string
+  snippet: string
+  job_url: string
+  posted_at: string
+  source: 'linkedin' | 'indeed'
+  already_saved: boolean
+}
+
+type RowState = 'idle' | 'saving' | 'saved'
+
 interface Props {
   onClose: () => void
   onDone: (msg: string) => void
 }
 
-type Tab = 'jobs' | 'gaps'
-
 export default function NotifyPanel({ onClose, onDone }: Props) {
-  const [tab, setTab]       = useState<Tab>('jobs')
-  const [email, setEmail]   = useState('')
+  const [keywords, setKeywords] = useState('')
+  const [jobs, setJobs] = useState<ApifyJob[]>([])
+  const [keywordsUsed, setKeywordsUsed] = useState<string[]>([])
+  const [mode, setMode] = useState<'live' | 'demo'>('demo')
   const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState<null | { subject: string; mode: string; error?: string }>(null)
+  const [error, setError] = useState('')
+  const [rowStates, setRowStates] = useState<Record<string, RowState>>({})
+  const [searched, setSearched] = useState(false)
 
-  async function trigger() {
-    if (!email.trim()) return
+  async function search() {
     setLoading(true)
-    setResult(null)
+    setError('')
+    setJobs([])
+    setRowStates({})
     try {
-      const endpoint = tab === 'jobs' ? '/api/notify/jobs' : '/api/notify/gaps'
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to_email: email, max_results: 5 }),
-      })
+      const params = keywords.trim() ? `?keywords=${encodeURIComponent(keywords.trim())}` : ''
+      const res = await fetch(`/api/apify/search${params}`)
       const data = await res.json()
-      if (data.error) {
-        setResult({ subject: '', mode: 'error', error: data.error })
-        return
-      }
-      const n = data.notification
-      setResult({ subject: n.subject, mode: n.mode, error: n.error })
-      if (n.mode !== 'error') {
-        const modeLabel = n.mode === 'live' ? 'Email sent' : 'Demo preview ready'
-        onDone(`${modeLabel} — "${n.subject}"`)
-        onClose()
-      }
+      if (data.error) { setError(data.error); return }
+      setJobs(data.jobs || [])
+      setKeywordsUsed(data.keywords_used || [])
+      setMode(data.mode)
+      setSearched(true)
     } catch {
-      setResult({ subject: '', mode: 'error', error: 'Request failed. Is the backend running?' })
+      setError('Search failed. Is the backend running?')
     } finally {
       setLoading(false)
     }
   }
 
+  async function addToShortlist(job: ApifyJob) {
+    const key = `${job.title}|${job.company}`
+    setRowStates(prev => ({ ...prev, [key]: 'saving' }))
+    try {
+      const res = await fetch('/api/jobs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: job.title,
+          company: job.company,
+          jd_text: job.snippet || `${job.title} at ${job.company} in ${job.location}`,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.detail || 'Failed to save.')
+        setRowStates(prev => ({ ...prev, [key]: 'idle' }))
+        return
+      }
+      setRowStates(prev => ({ ...prev, [key]: 'saved' }))
+      onDone(`${job.title} at ${job.company} added — ${data.skills_found} skills found`)
+    } catch {
+      setError('Save failed.')
+      setRowStates(prev => ({ ...prev, [key]: 'idle' }))
+    }
+  }
+
+  const linkedinJobs = jobs.filter(j => j.source === 'linkedin')
+  const indeedJobs   = jobs.filter(j => j.source === 'indeed')
+
   return (
-    <div className="paste-panel">
-      <div className="paste-panel-header">
-        <span>Job Alerts &amp; Notifications</span>
+    <div className="email-overlay">
+      {/* Header */}
+      <div className="email-overlay-header">
+        <span className="email-overlay-title">
+          Job Search with Apify
+          <span className={`email-source-badge${mode === 'live' ? ' email-source-live' : ''}`}>
+            {mode === 'live' ? 'live' : 'demo data'}
+          </span>
+          {searched && jobs.length > 0 && (
+            <span className="email-count">
+              {linkedinJobs.length} LinkedIn · {indeedJobs.length} Indeed
+            </span>
+          )}
+        </span>
         <button className="paste-close" onClick={onClose}>✕</button>
       </div>
 
-      <div className="notify-tabs">
-        <button
-          className={`notify-tab${tab === 'jobs' ? ' active' : ''}`}
-          onClick={() => setTab('jobs')}
-        >
-          New Job Matches
-        </button>
-        <button
-          className={`notify-tab${tab === 'gaps' ? ' active' : ''}`}
-          onClick={() => setTab('gaps')}
-        >
-          Skill Gap Reminder
-        </button>
-      </div>
+      {/* Body */}
+      <div className="email-overlay-body">
+        <div className="apify-search-row">
+          <input
+            className="apify-search-input"
+            placeholder="Keywords (e.g. Python data engineer) — leave blank to use your CV skills"
+            value={keywords}
+            onChange={e => setKeywords(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && !loading && search()}
+            disabled={loading}
+          />
+          <button
+            className="paste-submit apify-search-btn"
+            onClick={search}
+            disabled={loading}
+          >
+            {loading ? 'Searching…' : 'Search'}
+          </button>
+        </div>
 
-      <p className="notify-desc">
-        {tab === 'jobs'
-          ? 'Scrape fresh LinkedIn & Indeed listings matching your CV skills and email them to you.'
-          : 'Send a summary of your top skill gaps — the skills most in demand that you haven\'t listed on your CV.'}
-      </p>
+        {searched && keywordsUsed.length > 0 && (
+          <div className="apify-keywords-used">
+            Searched: {keywordsUsed.join(' · ')}
+          </div>
+        )}
 
-      <input
-        className="paste-meta-input notify-email-input"
-        placeholder="Your email address"
-        type="email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-      />
+        {error && <div className="email-error">{error}</div>}
 
-      {result?.error && (
-        <div className="notify-error">{result.error}</div>
-      )}
+        {!loading && searched && jobs.length === 0 && (
+          <div className="jobs-empty">No jobs found. Try different keywords.</div>
+        )}
 
-      <div className="paste-actions">
-        <button
-          className="paste-submit"
-          onClick={trigger}
-          disabled={loading || !email.trim()}
-        >
-          {loading ? 'Sending…' : tab === 'jobs' ? 'Find & Send Jobs' : 'Send Gap Reminder'}
-        </button>
-        <span className="notify-mode-hint">
-          {!loading && 'No Apify/Resend keys? Runs in demo mode — shows a preview.'}
-        </span>
+        {jobs.length > 0 && (
+          <div className="email-jobs-list">
+            {jobs.map(job => {
+              const key = `${job.title}|${job.company}`
+              const state = rowStates[key] ?? (job.already_saved ? 'saved' : 'idle')
+              return (
+                <div key={key} className="email-job-card">
+                  <div className="email-job-row">
+                    <div className="email-job-info">
+                      <div className="email-job-title">
+                        <span className={`email-platform-tag email-platform-${job.source}`}>
+                          {job.source === 'linkedin' ? 'LinkedIn' : 'Indeed'}
+                        </span>
+                        {job.title}
+                      </div>
+                      <div className="email-job-meta">
+                        {job.company}
+                        {job.location && ` · ${job.location}`}
+                        {job.posted_at && ` · ${job.posted_at}`}
+                      </div>
+                      {job.snippet && (
+                        <div className="apify-snippet">{job.snippet}</div>
+                      )}
+                    </div>
+                    <div className="email-job-actions">
+                      {job.job_url && (
+                        <a
+                          href={job.job_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="job-view"
+                        >
+                          View
+                        </a>
+                      )}
+                      {state === 'saved' && (
+                        <span className="email-job-tag">saved ✓</span>
+                      )}
+                      {state === 'saving' && (
+                        <span className="email-job-tag">saving…</span>
+                      )}
+                      {state === 'idle' && (
+                        <button
+                          className="email-add-btn"
+                          onClick={() => addToShortlist(job)}
+                        >
+                          + Add
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
     </div>
   )

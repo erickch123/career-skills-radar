@@ -26,6 +26,54 @@ class NotifyRequest(BaseModel):
     max_results: int = 5
 
 
+@router.get("/api/apify/search")
+def apify_search(keywords: str = "", db: Session = Depends(get_db)):
+    """Search LinkedIn + Indeed via Apify. Returns 5 results per source.
+    keywords — comma-separated or space-separated terms.
+    Falls back to top CV skills if omitted.
+    """
+    if keywords.strip():
+        kw_list = [k.strip() for k in keywords.replace(",", " ").split() if k.strip()]
+    else:
+        kw_list = [
+            s.canonical_skill_title
+            for s in db.query(SkillMatchCache)
+            .filter_by(source_type="cv", source_id=USER_ID)
+            .order_by(SkillMatchCache.confidence.desc())
+            .limit(5)
+            .all()
+        ]
+
+    if not kw_list:
+        kw_list = ["software engineer"]
+
+    jobs = fetch_jobs(keywords=kw_list, location="Singapore")
+
+    # Mark already-saved jobs
+    saved_keys: set[str] = {
+        f"{(j.title or '').lower()}|{(j.company or '').lower()}"
+        for j in db.query(SavedJob).filter_by(user_profile_id=USER_ID).all()
+    }
+
+    return {
+        "jobs": [
+            {
+                "title":       j.title,
+                "company":     j.company,
+                "location":    j.location,
+                "snippet":     j.description_snippet,
+                "job_url":     j.job_url,
+                "posted_at":   j.posted_at,
+                "source":      j.source,
+                "already_saved": f"{j.title.lower()}|{j.company.lower()}" in saved_keys,
+            }
+            for j in jobs
+        ],
+        "keywords_used": kw_list,
+        "mode": "live" if apify_connected() else "demo",
+    }
+
+
 @router.get("/api/notify/status")
 def notify_status():
     return {

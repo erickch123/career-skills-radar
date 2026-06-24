@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect, KeyboardEvent, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import type { KeyboardEvent } from 'react'
 import GapMap from './components/GapMap'
 import PastePanel from './components/PastePanel'
 import JobsList from './components/JobsList'
@@ -6,9 +7,11 @@ import CareerRadar from './components/CareerRadar'
 import WorkLogPanel from './components/WorkLogPanel'
 import EmailJobsPanel from './components/EmailJobsPanel'
 import NotifyPanel from './components/NotifyPanel'
+import HistoryPanel from './components/HistoryPanel'
+import MarkdownMessage from './components/MarkdownMessage'
 import './App.css'
 
-type PanelType = 'cv' | 'jd' | 'jobs' | 'worklog' | 'email' | 'notify' | null
+type PanelType = 'cv' | 'jd' | 'jobs' | 'worklog' | 'email' | 'notify' | 'history' | null
 
 interface CareerRadarMessage {
   role: 'system'
@@ -146,6 +149,22 @@ export default function App() {
               continue
             }
 
+            if (event.type === 'error') {
+              setMessages((prev) => {
+                const updated = [...prev]
+                const last = updated[updated.length - 1]
+                if (last.type === 'text') {
+                  updated[updated.length - 1] = {
+                    ...last,
+                    content: `⚠ ${event.message}`,
+                    role: 'system' as const,
+                  }
+                }
+                return updated
+              })
+              continue
+            }
+
             if (event.text) {
               // Insert tool breadcrumb before first text chunk
               if (bufferedToolCalls.length > 0 && !toolBreadcrumbInserted) {
@@ -206,69 +225,77 @@ export default function App() {
   return (
     <div className="chat-app">
       <header className="chat-header">
-        <div className="chat-header-top">
-          <div className="chat-header-left">
-            <div className="chat-header-title">Career Radar</div>
-            <div className="chat-header-sub">Skills gap advisor · SkillsFuture SG</div>
-          </div>
-          <div className="chat-header-actions">
-            <div className="header-btn-list">
-              <div className="header-btn-row">
-                <button className="action-btn header-btn" onClick={() => setPanel(panel === 'jobs' ? null : 'jobs')}>
-                  My Curated Shortlist
-                </button>
-                <span className="header-btn-desc">Jobs you handpicked — beyond what any algorithm decided for you.</span>
-              </div>
-              <div className="header-btn-row">
-                <button className="action-btn header-btn" onClick={() => setMessages((prev) => [...prev, { role: 'system', type: 'career_radar' }])}>
-                  Career Radar
-                </button>
-                <span className="header-btn-desc">Visualise how ready you are for each role. Discover which SkillsFuture career tracks fit your profile best.</span>
-              </div>
-              <div className="header-btn-row">
-                <button className="action-btn action-btn-primary header-btn" onClick={analyseGap}>
-                  {selectedJobIds.length > 0 ? `Analyse (${selectedJobIds.length})` : 'Analyse Gap'}
-                </button>
-                <span className="header-btn-desc">See exactly which skills to build next, ranked by demand across your shortlisted jobs.</span>
-              </div>
-            </div>
+        {/* Row 1: title + subtitle inline */}
+        <div className="chat-header-title-row">
+          <span className="chat-header-title">Career Radar</span>
+          <span className="chat-header-sub">Skills gap advisor · SkillsFuture SG</span>
+        </div>
 
-            <div className="add-dropdown" ref={addMenuRef}>
-              <button
-                className={`action-btn add-dropdown-trigger${addMenuOpen ? ' active' : ''}`}
-                onClick={() => setAddMenuOpen((o) => !o)}
-              >
-                + Add ▾
-              </button>
-              {addMenuOpen && (
-                <div className="add-dropdown-menu add-dropdown-menu--up">
-                  <button className="add-dropdown-item add-dropdown-item--described" onClick={() => openPanel(panel === 'cv' ? null : 'cv')}>
-                    <span className="add-dropdown-item-label">My CV</span>
-                    <span className="add-dropdown-item-desc">Paste your résumé so the AI can map your existing skills and benchmark you against job requirements.</span>
-                  </button>
-                  <button className="add-dropdown-item add-dropdown-item--described" onClick={() => openPanel(panel === 'jd' ? null : 'jd')}>
-                    <span className="add-dropdown-item-label">Add Job</span>
-                    <span className="add-dropdown-item-desc">Paste a job description manually — from any job board or company site — to add it to your shortlist.</span>
-                  </button>
-                  <button className="add-dropdown-item add-dropdown-item--described" onClick={() => openPanel(panel === 'email' ? null : 'email')}>
-                    <span className="add-dropdown-item-label">Email Alerts</span>
-                    <span className="add-dropdown-item-desc">Jobs from your LinkedIn, Indeed &amp; Glassdoor alert emails — already filtered by their AI. Save only the ones that truly interest you.</span>
-                  </button>
-                  <button className="add-dropdown-item add-dropdown-item--described" onClick={() => openPanel(panel === 'worklog' ? null : 'worklog')}>
-                    <span className="add-dropdown-item-label">Work Log</span>
-                    <span className="add-dropdown-item-desc">Paste your recent work log or activity summary so the AI can extract your demonstrated skills and seniority signals.</span>
-                  </button>
-                  <button className="add-dropdown-item add-dropdown-item--described" onClick={() => openPanel(panel === 'notify' ? null : 'notify')}>
-                    <span className="add-dropdown-item-label">Job Alerts</span>
-                    <span className="add-dropdown-item-desc">Scrape fresh LinkedIn &amp; Indeed jobs matching your CV skills and get emailed a curated list.</span>
-                  </button>
-                </div>
-              )}
-            </div>
+        {/* Row 2: overview */}
+        <div className="chat-header-overview">
+          Career Radar helps you stay career-ready even when you're not actively applying for jobs. It integrates Singapore's SkillsFuture data with your CV, saved job alerts from your favorite job portals, and work logs to turn scattered signals into one explainable skills-gap view — so if a layoff happens or your goals shift, you already know where you stand and what to learn next.
+        </div>
+
+        {/* Rows 3–6: action buttons full-width */}
+        <div className="header-btn-list">
+          <div className="header-btn-row">
+            <button className="action-btn header-btn" onClick={() => setPanel(panel === 'jobs' ? null : 'jobs')}>
+              My Curated Shortlist
+            </button>
+            <span className="header-btn-desc">Jobs you handpicked — beyond what any algorithm decided for you.</span>
+          </div>
+          <div className="header-btn-row">
+            <button className="action-btn header-btn" onClick={() => setMessages((prev) => [...prev, { role: 'system', type: 'career_radar' }])}>
+              Skills Compass
+            </button>
+            <span className="header-btn-desc">Visualise how ready you are for each role. Discover which SkillsFuture career tracks fit your profile best.</span>
+          </div>
+          <div className="header-btn-row">
+            <button className="action-btn action-btn-primary header-btn" onClick={analyseGap}>
+              {selectedJobIds.length > 0 ? `Analyse (${selectedJobIds.length})` : 'Analyse Gap'}
+            </button>
+            <span className="header-btn-desc">See exactly which skills to build next, ranked by demand across your shortlisted jobs.</span>
+          </div>
+          <div className="header-btn-row">
+            <button className="action-btn header-btn" onClick={() => openPanel(panel === 'history' ? null : 'history')}>
+              Career History
+            </button>
+            <span className="header-btn-desc">Track how your job search and skills have evolved month by month since July 2025.</span>
           </div>
         </div>
-        <div className="chat-header-overview">
-          Your AI-powered career advisor that maps your skills against Singapore's job market and SkillsFuture framework. Paste your CV, curate jobs from anywhere, and get a personalised gap analysis — so you know exactly what to learn next.
+
+        {/* Row 7: + Add dropdown */}
+        <div className="add-dropdown" ref={addMenuRef}>
+          <button
+            className={`action-btn add-dropdown-trigger${addMenuOpen ? ' active' : ''}`}
+            onClick={() => setAddMenuOpen((o) => !o)}
+          >
+            + Add ▾
+          </button>
+          {addMenuOpen && (
+            <div className="add-dropdown-menu">
+              <button className="add-dropdown-item add-dropdown-item--described" onClick={() => openPanel(panel === 'cv' ? null : 'cv')}>
+                <span className="add-dropdown-item-label">My CV</span>
+                <span className="add-dropdown-item-desc">Paste your résumé so the AI can map your existing skills and benchmark you against job requirements.</span>
+              </button>
+              <button className="add-dropdown-item add-dropdown-item--described" onClick={() => openPanel(panel === 'jd' ? null : 'jd')}>
+                <span className="add-dropdown-item-label">Add Job</span>
+                <span className="add-dropdown-item-desc">Paste a job description manually — from any job board or company site — to add it to your shortlist.</span>
+              </button>
+              <button className="add-dropdown-item add-dropdown-item--described" onClick={() => openPanel(panel === 'email' ? null : 'email')}>
+                <span className="add-dropdown-item-label">Email Alerts</span>
+                <span className="add-dropdown-item-desc">Jobs from your LinkedIn, Indeed &amp; Glassdoor alert emails — already filtered by their AI. Save only the ones that truly interest you.</span>
+              </button>
+              <button className="add-dropdown-item add-dropdown-item--described" onClick={() => openPanel(panel === 'worklog' ? null : 'worklog')}>
+                <span className="add-dropdown-item-label">Work Log</span>
+                <span className="add-dropdown-item-desc">Paste your recent work log or activity summary so the AI can extract your demonstrated skills and seniority signals.</span>
+              </button>
+              <button className="add-dropdown-item add-dropdown-item--described" onClick={() => openPanel(panel === 'notify' ? null : 'notify')}>
+                <span className="add-dropdown-item-label">Job Search with Apify</span>
+                <span className="add-dropdown-item-desc">Scrape fresh LinkedIn &amp; Indeed jobs matching your CV skills via Apify actors and get emailed a curated list.</span>
+              </button>
+            </div>
+          )}
         </div>
       </header>
 
@@ -285,7 +312,7 @@ export default function App() {
       {panel === 'email' && (
         <EmailJobsPanel
           onClose={() => setPanel(null)}
-          onImported={(msg) => {
+          onSaved={(msg: string) => {
             addSystemMsg(msg)
             setPanel(null)
           }}
@@ -319,6 +346,9 @@ export default function App() {
           }}
         />
       )}
+      {panel === 'history' && (
+        <HistoryPanel onClose={() => setPanel(null)} />
+      )}
 
       <main className="chat-messages">
         {messages.map((msg, i) => {
@@ -347,13 +377,17 @@ export default function App() {
           return (
             <div key={i} className={`msg msg-${msg.role}`}>
               <div className="bubble">
-                {msg.content
-                  ? msg.content.split('\n').map((line, j) =>
-                      line ? <p key={j}>{line}</p> : <br key={j} />
-                    )
-                  : streaming && i === messages.length - 1
-                    ? <span className="cursor" />
-                    : null}
+                {msg.role === 'assistant' ? (
+                  msg.content
+                    ? <MarkdownMessage content={msg.content} isStreaming={streaming && i === messages.length - 1} />
+                    : streaming && i === messages.length - 1 ? <span className="cursor" /> : null
+                ) : (
+                  msg.content
+                    ? msg.content.split('\n').map((line, j) =>
+                        line ? <p key={j}>{line}</p> : <br key={j} />
+                      )
+                    : null
+                )}
               </div>
             </div>
           )
