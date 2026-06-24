@@ -6,6 +6,12 @@ Built for **PyCon SG 2026 Hackathon — Job & Skills Track**.
 
 ---
 
+## Demo video
+
+[Watch on Loom →](https://www.loom.com/share/c4c75719cd724c90837dfbb5bc7458f0)
+
+---
+
 ## Diagrams
 
 **User Journey & Features** — problems solved, feature flow, and outcomes:
